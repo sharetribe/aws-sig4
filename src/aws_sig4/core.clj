@@ -1,6 +1,9 @@
 (ns aws-sig4.core)
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(defn canonical-request [request])
+
+(defn string-to-sign [crequest])
+
+(defn signature [str-to-sign])
+
+(defn with-signature [request sig])

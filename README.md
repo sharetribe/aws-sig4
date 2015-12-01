@@ -1,6 +1,6 @@
 # aws-sig4
 
-A Clojure library designed to ... well, that part is up to you.
+Middleware to add AWS signature v4 signing to clj-http requests.
 
 ## Usage
 
@@ -8,7 +8,6 @@ FIXME
 
 ## License
 
-Copyright © 2015 FIXME
+Copyright © 2015 Sharetribe Ltd.
 
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under [The Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
