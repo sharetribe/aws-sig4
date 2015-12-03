@@ -30,30 +30,59 @@
                                   [(apply str f)
                                    (apply str (rest s))])))
                          (into {}))
-            host (get headers "Host")]
+            host (or (get headers "Host") (get headers "host"))]
         {:method (keyword (.toLowerCase method))
          :url (str "http://" host path)
          :headers (dissoc headers "Host")
          :body (first (rest body))})
       ((http/wrap-url identity))
-      ((http/wrap-method identity))))
+      ((http/wrap-method identity))
+      ))
 
-(deftest get-vanilla-query
-  (let [request (-> "get-vanilla-query" read-req ->request-map)
-        expected-can (read-can "get-vanilla-query")]
-    (is (= expected-can
-           (canonical-request request))
-        "Canonical request")))
+(defmacro def-aws-test
+  "Generate a deftest definition using the given testcase file base
+  name."
+  [testcase]
+  (let [basename (name testcase)]
+    `(deftest ~testcase
+       (let [request# (-> ~basename read-req ->request-map)
+             expected-canonical-req# (read-can ~basename)]
+         (is (= expected-canonical-req#
+                (canonical-request request#))
+             "Canonical request")))))
 
-(deftest post-x-www-form-urlencoded-parameters
-  (let [request (-> "post-x-www-form-urlencoded-parameters" read-req ->request-map)
-        expected-can (read-can "post-x-www-form-urlencoded-parameters")]
-    (is (= expected-can
-           (canonical-request request))
-        "Canonical request")))
+
+;; The actual test cases
+
+
+;; Ignoring the duplicate header tests because clj-http models headers
+;; as a map. This means that multiple headers with same name are
+;; eliminated when the header map is built way before the middleware
+;; is invoked.
+;; (def-aws-test get-header-key-duplicate)
+;; (def-aws-test get-header-value-order)
+
+(def-aws-test get-header-value-trim)
+(def-aws-test get-relative)
+(def-aws-test get-relative-relative)
+(def-aws-test get-slash-dot-slash)
+(def-aws-test get-slash-pointless-dot)
+(def-aws-test get-slash)
+(def-aws-test get-slashes)
+(def-aws-test get-space)
+(def-aws-test get-unreserved)
+(def-aws-test get-utf8)
+(def-aws-test get-vanilla-empty-query-key)
+(def-aws-test get-vanilla-query-order-key-case)
+(def-aws-test get-vanilla-query-order-key)
+(def-aws-test get-vanilla-query-order-value)
+
+(def-aws-test post-x-www-form-urlencoded-parameters)
 
 (comment
   (run-tests)
+  (read-can "get-slashes")
+  (->request-map (read-req "get-slashes"))
   )
 
 (comment

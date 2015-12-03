@@ -1,15 +1,33 @@
 (ns aws-sig4.core
   (:require [clojure.string :as str]
-            [cemerick.url :as url]
+            [pathetic.core :as pathetic]
             [buddy.core.hash :as hash]
-            [buddy.core.codecs :as codecs]))
+            [buddy.core.codecs :as codecs])
+  (:import [java.net URLEncoder]))
 
 (def nl (with-out-str (newline)))
 
-(defn- url-encode [str]
-  (if-let [encoded (url/url-encode str)]
-    (str/replace encoded #"%7E" "~")
-    ""))
+;; Adapted from
+;; https://github.com/cemerick/url/blob/master/src/cemerick/url.cljx#L9
+(defn url-encode
+  [string]
+  (some-> string
+          str
+          (URLEncoder/encode "UTF-8")
+          (.replace "+" "%20")
+          (.replace "%7E" "~")))
+
+(defn- canonical-uri
+  [uri]
+  (if (empty? uri)
+    "/"
+    (let [normalized (pathetic/normalize uri)]
+      (if (and (> (.length normalized) 1)
+               (= (.charAt uri (- (.length uri) 1)) \/))
+        (str normalized "/")
+        normalized))))
+
+(canonical-uri "/foo/bar/")
 
 (defn- canonical-query-string [query-string]
   (if-not (empty? query-string)
@@ -50,9 +68,7 @@
   (let [{:keys [request-method uri query-string
                 headers server-name body]} request
         parts [(str/upper-case (name request-method))
-               (if (or (empty? uri) (= uri "/"))
-                 "/"
-                 (url/url-encode uri))
+               (canonical-uri uri)
                (canonical-query-string query-string)
                (canonical-headers headers server-name)
                (signed-headers headers)
@@ -60,6 +76,8 @@
     (->> parts
          (str/join nl))))
 
+(comment (pathetic/normalize "//foo/")
+         )
 (defn string-to-sign [crequest])
 
 (defn signature [str-to-sign])
