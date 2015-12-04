@@ -27,15 +27,20 @@
         (str normalized "/")
         normalized))))
 
-(canonical-uri "/foo/bar/")
+(defn- query-param-comp
+  [[p1n p1v] [p2n p2v]]
+  (let [name-order (compare p1n p2n)]
+    (if (= name-order 0)
+      (compare p1v p2v)
+      name-order)))
 
 (defn- canonical-query-string [query-string]
   (if-not (empty? query-string)
     (->> (str/split query-string #"&")
          (map #(str/split % #"="))
          (map (fn [[name value]]
-                [(url-encode name) (url-encode value)]))
-         (sort-by first)
+                [name value]))
+         (sort query-param-comp)
          (map #(str/join "=" %))
          (str/join "&"))
     ""))
@@ -76,8 +81,6 @@
     (->> parts
          (str/join nl))))
 
-(comment (pathetic/normalize "//foo/")
-         )
 (defn string-to-sign [crequest])
 
 (defn signature [str-to-sign])
