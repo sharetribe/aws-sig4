@@ -49,7 +49,7 @@
        (let [request# (-> ~basename read-req ->request-map)
              expected-canonical-req# (read-can ~basename)]
          (is (= expected-canonical-req#
-                (canonical-request request#))
+                (:canonical-request (canonical-request request#)))
              "Canonical request")))))
 
 
@@ -133,7 +133,7 @@
   )
 
 (comment
-  (-> "get-vanilla-query" read-req ->request-map)
+  (canonical-request (-> "get-vanilla-query" read-req ->request-map))
   (-> "get-vanilla-empty-query-key" read-req ->request-map)
   (-> "get-space" read-req ->request-map)
   (-> "get-slashes" read-req ->request-map)
