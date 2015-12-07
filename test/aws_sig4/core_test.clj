@@ -3,7 +3,10 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clj-http.client :as http]
-            [aws-sig4.core :refer :all])
+            [aws-sig4.core :as aws-sig4]
+            [clj-time.format :as format]
+            [clj-time.core :as time])
+
   (:import [java.net URL]))
 
 
@@ -49,7 +52,7 @@
        (let [request# (-> ~basename read-req ->request-map)
              expected-canonical-req# (read-can ~basename)]
          (is (= expected-canonical-req#
-                (:canonical-request (canonical-request request#)))
+                (:canonical-request (aws-sig4/canonical-request request#)))
              "Canonical request")))))
 
 
@@ -57,21 +60,57 @@
 
 (deftest header-trimming
   (is (= ""
-         (trim-all nil)))
+         (aws-sig4/trim-all nil)))
   (is (= ""
-         (trim-all "")))
+         (aws-sig4/trim-all "")))
   (is (= "foobar"
-         (trim-all "foobar")))
+         (aws-sig4/trim-all "foobar")))
   (is (= "foo bar"
-         (trim-all "  foo  bar ")))
+         (aws-sig4/trim-all "  foo  bar ")))
   (is (= "- foo bar baz"
-         (trim-all "\t\n\n  -  foo  bar   baz")))
+         (aws-sig4/trim-all "\t\n\n  -  foo  bar   baz")))
   (is (= "\"foo  bar\""
-         (trim-all "\"foo  bar\"")))
+         (aws-sig4/trim-all "\"foo  bar\"")))
   (is (= "foo \"bar  baz  \" yarr"
-         (trim-all "  foo  \"bar  baz  \" yarr ")))
+         (aws-sig4/trim-all "  foo  \"bar  baz  \" yarr ")))
   (is (= "foo \"bar  baz  \" ya rr \"bar  baz  \""
-         (trim-all "  foo  \"bar  baz  \" ya  rr \"bar  baz  \" "))))
+         (aws-sig4/trim-all "  foo  \"bar  baz  \" ya  rr \"bar  baz  \" "))))
+
+(def rfc1123-formatter (format/formatter "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+                                         time/utc))
+(deftest date-header-parsing
+  (let [date-header-str "Mon, 09 Sep 2011 23:36:00 GMT"
+        date-header-date (format/parse rfc1123-formatter date-header-str)
+        x-amz-date (time/date-time 2015 12 06 16 40 22)
+        x-amz-date-str (format/unparse (format/formatters :basic-date-time-no-ms)
+                                x-amz-date)]
+    (is (= date-header-date
+           (-> "get-vanilla-query"
+               read-req
+               ->request-map
+               aws-sig4/canonical-request
+               :request-time))
+        "Parse Date header")
+    (is (= x-amz-date
+           (-> "get-vanilla-query"
+               read-req
+               ->request-map
+               (assoc-in [:headers "X-Amz-Date"] x-amz-date-str)
+               aws-sig4/canonical-request
+               :request-time))
+        "Prioritize X-Amz-Date")
+    (is (= x-amz-date
+           (-> "get-vanilla-query"
+               read-req
+               ->request-map
+               (assoc-in [:headers "x-Amz-DATE"] x-amz-date-str)
+               aws-sig4/canonical-request
+               :request-time))
+        "Ignore header case")))
+
+
+;; AWS TEST CASES
+;; ==============
 
 ;; Ignoring the duplicate header tests because clj-http models headers
 ;; as a map. This means that multiple headers with same name are
@@ -133,7 +172,10 @@
   )
 
 (comment
-  (canonical-request (-> "get-vanilla-query" read-req ->request-map))
+  (aws-sig4/canonical-request (-> "get-vanilla-query" read-req ->request-map))
+  (aws-sig4/canonical-request (assoc-in (-> "get-vanilla-query" read-req ->request-map)
+                               [:headers "X-Amz-Date"]
+                               "20150830T123600Z"))
   (-> "get-vanilla-empty-query-key" read-req ->request-map)
   (-> "get-space" read-req ->request-map)
   (-> "get-slashes" read-req ->request-map)
