@@ -17,11 +17,16 @@
           (.replace "+" "%20")
           (.replace "%7E" "~")))
 
+(defn trim-all [s]
+  (if-some [trimmed (some->> s (re-seq #"\".*?\"|\S+") (str/join " "))]
+    trimmed
+    ""))
+
 (defn- canonical-uri
-  [uri]
+  [^String uri]
   (if (empty? uri)
     "/"
-    (let [normalized (pathetic/normalize uri)]
+    (let [^String normalized (pathetic/normalize uri)]
       (if (and (> (.length normalized) 1)
                (= (.charAt uri (- (.length uri) 1)) \/))
         (str normalized "/")
@@ -50,9 +55,7 @@
     (->> with-host
          (map (fn [[header-n header-v]]
                 [(str/lower-case header-n)
-                 ;; Known limitation: doesn't trim sequential spaces
-                 ;; from inside header values.
-                 (str/trim header-v)]))
+                 (trim-all header-v)]))
          (sort-by first)
          (map #(str (str/join ":" %) nl))
          str/join)))

@@ -55,6 +55,23 @@
 
 ;; The actual test cases
 
+(deftest header-trimming
+  (is (= ""
+         (trim-all nil)))
+  (is (= ""
+         (trim-all "")))
+  (is (= "foobar"
+         (trim-all "foobar")))
+  (is (= "foo bar"
+         (trim-all "  foo  bar ")))
+  (is (= "- foo bar baz"
+         (trim-all "\t\n\n  -  foo  bar   baz")))
+  (is (= "\"foo  bar\""
+         (trim-all "\"foo  bar\"")))
+  (is (= "foo \"bar  baz  \" yarr"
+         (trim-all "  foo  \"bar  baz  \" yarr ")))
+  (is (= "foo \"bar  baz  \" ya rr \"bar  baz  \""
+         (trim-all "  foo  \"bar  baz  \" ya  rr \"bar  baz  \" "))))
 
 ;; Ignoring the duplicate header tests because clj-http models headers
 ;; as a map. This means that multiple headers with same name are

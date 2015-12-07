@@ -7,4 +7,5 @@
                  [com.cemerick/url "0.1.1"]
                  [pathetic "0.5.1"]
                  [buddy/buddy-core "0.8.1"]]
-  :profiles {:dev {:dependencies [[clj-http "2.0.0"]]}})
+  :profiles {:dev {:dependencies [[clj-http "2.0.0"]
+                                  [criterium "0.4.3"]]}})
