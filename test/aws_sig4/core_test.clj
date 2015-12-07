@@ -18,6 +18,9 @@
 (defn- read-can [tc]
   (slurp (io/resource (str tc-dir tc ".creq"))))
 
+(defn- read-sts [tc]
+  (slurp (io/resource (str tc-dir tc ".sts"))))
+
 (defn- ->request-map
   "Parse the given HTTP request string to clj-http request map."
   [request-str]
@@ -50,9 +53,16 @@
   (let [basename (name testcase)]
     `(deftest ~testcase
        (let [request# (-> ~basename read-req ->request-map)
-             expected-canonical-req# (read-can ~basename)]
+             canonical-req# (aws-sig4/canonical-request request#)
+             expected-canonical-req# (read-can ~basename)
+             expected-sts# (read-sts ~basename)]
          (is (= expected-canonical-req#
-                (:canonical-request (aws-sig4/canonical-request request#)))
+                (:canonical-request canonical-req#))
+             "Canonical request")
+         (is (= expected-sts#
+                (:string-to-sign (aws-sig4/string-to-sign canonical-req#
+                                                          {:region "us-east-1"
+                                                           :service "host"})))
              "Canonical request")))))
 
 
@@ -80,7 +90,7 @@
                                          time/utc))
 (deftest date-header-parsing
   (let [date-header-str "Mon, 09 Sep 2011 23:36:00 GMT"
-        date-header-date (format/parse rfc1123-formatter date-header-str)
+        date-header-date (time/date-time 2011 9 9 23 36 00)
         x-amz-date (time/date-time 2015 12 06 16 40 22)
         x-amz-date-str (format/unparse (format/formatters :basic-date-time-no-ms)
                                 x-amz-date)]
@@ -176,6 +186,10 @@
   (aws-sig4/canonical-request (assoc-in (-> "get-vanilla-query" read-req ->request-map)
                                [:headers "X-Amz-Date"]
                                "20150830T123600Z"))
+
+  (:string-to-sign (aws-sig4/string-to-sign (aws-sig4/canonical-request (-> "get-vanilla-query" read-req ->request-map))))
+  (read-sts "get-vanilla-query")
+
   (-> "get-vanilla-empty-query-key" read-req ->request-map)
   (-> "get-space" read-req ->request-map)
   (-> "get-slashes" read-req ->request-map)

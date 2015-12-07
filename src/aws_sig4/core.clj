@@ -8,9 +8,21 @@
   (:import [java.net URLEncoder]))
 
 (def nl (with-out-str (newline)))
-(def rfc1123-formatter (format/formatter "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
-                                         time/utc))
+(def rfc-1123-formatter (format/formatter "dd MMM yyyy HH:mm:ss 'GMT'"
+                                          time/utc))
+(defn- parse-rfc1123
+  "Parse a date string from RFC1123 format by dropping the redundant
+  weekday from the start effectively prioritizing day-of-month over
+  weekday in case the two are in conflict."
+  [s]
+  (some->> s
+           (re-seq #"\S+")
+           rest
+           (str/join " ")
+           (format/parse rfc-1123-formatter)))
+
 (def basic-date-time-no-ms (format/formatters :basic-date-time-no-ms))
+(def basic-date (format/formatters :basic-date))
 
 (defn trim-all [s]
   (if-some [trimmed (some->> s (re-seq #"\".*?\"|\S+") (str/join " "))]
@@ -51,7 +63,7 @@
                          (some->> (headers "x-amz-date")
                                   (format/parse basic-date-time-no-ms))
                          (some->> (headers "date")
-                                  (format/parse rfc1123-formatter)))]
+                                  parse-rfc1123))]
     request-time
     (throw (ex-info (str "Request must define either X-Amz-Date or Date "
                          "header in order to be signed with AWS v4 signature.")
@@ -99,12 +111,20 @@
                (canonical-headers normalized-headers)
                (signed-headers normalized-headers)
                (hashed-payload body)]]
-    {:canonical-request (->> parts
-                             (str/join nl))
+    {:request request
+     :canonical-request (str/join nl parts)
      :request-time request-time}))
 
-(defn string-to-sign [crequest]
-  )
+(defn string-to-sign [crequest {:keys [region service]}]
+  (let [{:keys [canonical-request request-time]} crequest
+        parts ["AWS4-HMAC-SHA256"
+               (format/unparse basic-date-time-no-ms request-time)
+               (str (format/unparse basic-date request-time) "/"
+                    region "/"
+                    service "/"
+                    "aws4_request")
+               (-> canonical-request hash/sha256 codecs/bytes->hex)]]
+    (assoc crequest :string-to-sign (str/join nl parts))))
 
 (defn signature [str-to-sign])
 
