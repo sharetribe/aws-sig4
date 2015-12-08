@@ -21,6 +21,9 @@
 (defn- read-sts [tc]
   (slurp (io/resource (str tc-dir tc ".sts"))))
 
+(defn- read-authz [tc]
+  (slurp (io/resource (str tc-dir tc ".authz"))))
+
 (defn- ->request-map
   "Parse the given HTTP request string to clj-http request map."
   [request-str]
@@ -50,20 +53,28 @@
   "Generate a deftest definition using the given testcase file base
   name."
   [testcase]
-  (let [basename (name testcase)]
+  (let [basename (name testcase)
+        opts {:region "us-east-1"
+              :service "host"
+              :access-key "AKIDEXAMPLE"
+              :secret-key "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"}]
     `(deftest ~testcase
        (let [request# (-> ~basename read-req ->request-map)
              canonical-req# (aws-sig4/canonical-request request#)
+             sts-req# (aws-sig4/string-to-sign canonical-req# ~opts)
+             authorization-req# (aws-sig4/authorization sts-req# ~opts)
              expected-canonical-req# (read-can ~basename)
-             expected-sts# (read-sts ~basename)]
+             expected-sts# (read-sts ~basename)
+             expected-auth# (read-authz ~basename)]
          (is (= expected-canonical-req#
                 (:canonical-request canonical-req#))
              "Canonical request")
          (is (= expected-sts#
-                (:string-to-sign (aws-sig4/string-to-sign canonical-req#
-                                                          {:region "us-east-1"
-                                                           :service "host"})))
-             "Canonical request")))))
+                (:string-to-sign sts-req#))
+             "String to sign")
+         (is (= expected-auth#
+                (:authorization authorization-req#))
+             "Authorization header value")))))
 
 
 ;; The actual test cases
@@ -118,6 +129,28 @@
                :request-time))
         "Ignore header case")))
 
+
+(deftest calculating-signature
+  (let [opts {:region "us-east-1"
+              :service "iam"
+              :access-key "AKIDEXAMPLE"
+              :secret-key "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"}
+        sts  (str "AWS4-HMAC-SHA256\n"
+                  "20150830T123600Z\n"
+                  "20150830/us-east-1/iam/aws4_request\n"
+                  "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59")
+        skey (apply aws-sig4/signing-key
+                    (->> (assoc opts :date-str "20150830")
+                         (into [])
+                         flatten))]
+    (is (= [196 175 177 204 87 113 216 113 118 58 57 62 68 183 3 87 27 85 204 40 66 77 26 94 134 218 110 211 193 84 164 185]
+           (->> skey
+                (into [])
+                (mapv #(mod % 256))))
+        "Signing key")
+    (is (= "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"
+           (aws-sig4/calc-signature skey sts))
+        "Signature")))
 
 ;; AWS TEST CASES
 ;; ==============
@@ -189,6 +222,17 @@
 
   (:string-to-sign (aws-sig4/string-to-sign (aws-sig4/canonical-request (-> "get-vanilla-query" read-req ->request-map))))
   (read-sts "get-vanilla-query")
+
+  (let [opts {:region "us-east-1"
+              :service "iam"
+              :access-key "AKIDEXAMPLE"
+              :secret-key "K7MDENG+bPxRfiCYEXAMPLEKEY"}]
+    (-> "get-vanilla-query"
+        read-req
+        ->request-map
+        aws-sig4/canonical-request
+        (aws-sig4/string-to-sign opts)
+        (aws-sig4/authorization opts)))
 
   (-> "get-vanilla-empty-query-key" read-req ->request-map)
   (-> "get-space" read-req ->request-map)

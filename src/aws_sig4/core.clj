@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [pathetic.core :as pathetic]
             [buddy.core.hash :as hash]
+            [buddy.core.mac :as mac]
             [buddy.core.codecs :as codecs]
             [clj-time.core :as time]
             [clj-time.format :as format])
@@ -65,8 +66,8 @@
                          (some->> (headers "date")
                                   parse-rfc1123))]
     request-time
-    (throw (ex-info (str "Request must define either X-Amz-Date or Date "
-                         "header in order to be signed with AWS v4 signature.")
+    (throw (ex-info (str "Request must define either X-Amz-Date or Date header "
+                         "in order to be signed with the AWS v4 signature.")
                     {:headers headers}))))
 
 (defn- normalize-headers [headers server-name]
@@ -105,27 +106,60 @@
                 headers server-name body]} request
         normalized-headers (normalize-headers headers server-name)
         request-time (parse-date normalized-headers)
+        signed-headers (signed-headers normalized-headers)
         parts [(str/upper-case (name request-method))
                (canonical-uri uri)
                (canonical-query-string query-string)
                (canonical-headers normalized-headers)
-               (signed-headers normalized-headers)
+               signed-headers
                (hashed-payload body)]]
     {:request request
      :canonical-request (str/join nl parts)
-     :request-time request-time}))
+     :request-time request-time
+     :signed-headers signed-headers}))
 
-(defn string-to-sign [crequest {:keys [region service]}]
-  (let [{:keys [canonical-request request-time]} crequest
-        parts ["AWS4-HMAC-SHA256"
+(defn string-to-sign [aws-request {:keys [region service]}]
+  (let [{:keys [canonical-request request-time]} aws-request
+        date-stamp (format/unparse basic-date request-time)
+        credential-scope (str/join "/"
+                                   [date-stamp region service "aws4_request"])
+        algorithm "AWS4-HMAC-SHA256"
+        parts [algorithm
                (format/unparse basic-date-time-no-ms request-time)
-               (str (format/unparse basic-date request-time) "/"
-                    region "/"
-                    service "/"
-                    "aws4_request")
+               credential-scope
                (-> canonical-request hash/sha256 codecs/bytes->hex)]]
-    (assoc crequest :string-to-sign (str/join nl parts))))
 
-(defn signature [str-to-sign])
+    (assoc aws-request
+           :string-to-sign (str/join nl parts)
+           :date-stamp date-stamp
+           :credential-scope credential-scope
+           :algorithm algorithm)))
 
-(defn with-signature [request sig])
+
+(defn- hmac-sha256 [key data]
+  (mac/hash data {:key key :alg :hmac+sha256}))
+
+(defn signing-key
+  [& {:keys [region service secret-key date-str]}]
+  (-> (str "AWS4" secret-key)
+      (hmac-sha256 date-str)
+      (hmac-sha256 region)
+      (hmac-sha256 service)
+      (hmac-sha256 "aws4_request")))
+
+(defn calc-signature [skey sts]
+  (codecs/bytes->hex (hmac-sha256 skey sts)))
+
+(defn authorization [aws-request {:keys [region service access-key secret-key]}]
+  (let [{:keys [string-to-sign algorithm date-stamp
+                credential-scope signed-headers]} aws-request
+        skey (signing-key :region region
+                          :service service
+                          :secret-key secret-key
+                          :date-str date-stamp)
+        signature (calc-signature skey string-to-sign)
+        authorization (str algorithm " "
+                           "Credential=" access-key "/" credential-scope ", "
+                           "SignedHeaders=" signed-headers ", "
+                           "Signature=" signature)]
+    (assoc aws-request :authorization authorization)))
