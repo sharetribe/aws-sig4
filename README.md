@@ -1,10 +1,53 @@
 # aws-sig4
 
-Middleware to add AWS signature v4 signing to clj-http requests.
+[AWS signature v4 request signing](http://docs.aws.amazon.com/general/latest/gr/signature-version-4.html)
+implemented as an clj-http middleware. This is a pure clojure
+implementation and does not require the AWS SDK. It only provides the
+middleware and doesn't do anything else like autodetecting AWS
+credentials. Providing correct credentials, region and service name is
+the responsibility of caller.
+
+**This software hasn't been battle tested yet. Expect bugs and problems.**
+
+## Installation
+
+TBD after alpha pushed to clojars.
 
 ## Usage
 
-FIXME
+Require clj-http client and the middleware.
+
+```clojure
+(require '[asw-sig4.middleware :as aws-sig4]
+         '[clj-http.client :as http])
+```
+
+Build an auth middleware instance by passing in AWS parameters.
+
+```clojure
+(def wrap-aws-auth (aws-sig4/build-wrap-aws-auth {:region "us-east-1"
+                                                  :service "es"
+                                                  :access-key "AWS_ACCESS_KEY"
+                                                  :secret-key "AWS_SECRET_KEY"}))
+
+```
+
+Wrap outgoing requests with the middleware instance. Optionally
+include wrap-aws-date to ensure that that requests have either the
+required Date header or if not generate X-Amz-Date
+header. wrap-aws-date must be defined first in the middleware chain.
+
+```clojure
+(http/with-additional-middleware
+  [wrap-aws-auth aws-sig4/wrap-aws-date]
+  (http/get "https://my-es-instance.us-east-1.es.amazonaws.com/_cat/indices"))
+```
+
+That's it.
+
+Hint: Consider using
+[temporary security credentials](http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html#RequestWithSTS)
+when accessing AWS services.
 
 ## License
 
