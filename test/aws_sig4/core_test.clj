@@ -24,7 +24,10 @@
 (defn- read-authz [tc]
   (slurp (io/resource (str tc-dir tc ".authz"))))
 
-(defn- ->request-map
+(defn- read-sreq [tc]
+  (slurp (io/resource (str tc-dir tc ".sreq"))))
+
+(defn- str->request-map
   "Parse the given HTTP request string to clj-http request map."
   [request-str]
   (-> (let [lines (str/split-lines request-str)
@@ -38,8 +41,8 @@
                          (map (fn [hstr]
                                 (let [n (.indexOf hstr ":")
                                       [f s] (split-at n hstr)]
-                                  [(apply str f)
-                                   (apply str (rest s))])))
+                                  [(str/trim (apply str f))
+                                   (str/trim (apply str (rest s)))])))
                          (into {}))
             host (or (get headers "Host") (get headers "host"))]
         {:method (keyword (.toLowerCase method))
@@ -48,6 +51,7 @@
          :body (first (rest body))})
       ((http/wrap-url identity))
       ((http/wrap-method identity))))
+
 
 (defmacro def-aws-test
   "Generate a deftest definition using the given testcase file base
@@ -59,13 +63,16 @@
               :access-key "AKIDEXAMPLE"
               :secret-key "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"}]
     `(deftest ~testcase
-       (let [request# (-> ~basename read-req ->request-map)
-             canonical-req# (aws-sig4/canonical-request request#)
-             sts-req# (aws-sig4/string-to-sign canonical-req# ~opts)
-             authorization-req# (aws-sig4/authorization sts-req# ~opts)
+       (let [request#                (-> ~basename read-req str->request-map)
+             canonical-req#          (aws-sig4/canonical-request request#)
+             sts-req#                (aws-sig4/string-to-sign canonical-req#
+                                                              ~opts)
+             authorization-req#      (aws-sig4/authorization sts-req# ~opts)
+             signed-req#             ((aws-sig4/wrap-aws-auth identity ~opts) request#)
              expected-canonical-req# (read-can ~basename)
-             expected-sts# (read-sts ~basename)
-             expected-auth# (read-authz ~basename)]
+             expected-sts#           (read-sts ~basename)
+             expected-auth#          (read-authz ~basename)
+             expected-signed-req#    (-> ~basename read-sreq str->request-map)]
          (is (= expected-canonical-req#
                 (:canonical-request canonical-req#))
              "Canonical request")
@@ -74,7 +81,10 @@
              "String to sign")
          (is (= expected-auth#
                 (:authorization authorization-req#))
-             "Authorization header value")))))
+             "Authorization header value")
+         (is (= expected-signed-req#
+                signed-req#)
+             "Signed request")))))
 
 
 ;; The actual test cases
@@ -108,14 +118,14 @@
     (is (= date-header-date
            (-> "get-vanilla-query"
                read-req
-               ->request-map
+               str->request-map
                aws-sig4/canonical-request
                :request-time))
         "Parse Date header")
     (is (= x-amz-date
            (-> "get-vanilla-query"
                read-req
-               ->request-map
+               str->request-map
                (assoc-in [:headers "X-Amz-Date"] x-amz-date-str)
                aws-sig4/canonical-request
                :request-time))
@@ -123,7 +133,7 @@
     (is (= x-amz-date
            (-> "get-vanilla-query"
                read-req
-               ->request-map
+               str->request-map
                (assoc-in [:headers "x-Amz-DATE"] x-amz-date-str)
                aws-sig4/canonical-request
                :request-time))
@@ -153,20 +163,20 @@
         "Signature")))
 
 (deftest wrap-aws-date
-  (let [request-with-date (-> "get-vanilla-query" read-req ->request-map)
-        request-with-DAtE (update (-> "get-vanilla-query" read-req ->request-map)
+  (let [request-with-date (-> "get-vanilla-query" read-req str->request-map)
+        request-with-DAtE (update (-> "get-vanilla-query" read-req str->request-map)
                                 :headers
                                 (fn [headers]
                                   (let [datev (headers "Date")]
                                     (-> headers
                                         (dissoc "Date")
                                         (assoc "DAtE" datev)))))
-        request-no-date (update (-> "get-vanilla-query" read-req ->request-map)
+        request-no-date (update (-> "get-vanilla-query" read-req str->request-map)
                                 :headers
                                 dissoc "Date")
         amz-date (format/unparse (format/formatters :basic-date-time-no-ms)
                                  (time/minus (time/now) (time/days 5)))
-        request-no-date-amz (update (-> "get-vanilla-query" read-req ->request-map)
+        request-no-date-amz (update (-> "get-vanilla-query" read-req str->request-map)
                                 :headers
                                 (fn [headers]
                                   (let [datev (headers "Date")]
@@ -246,35 +256,6 @@
     (fn [request]
       (reset! last-req request)
       (client request)))
-  (http/with-middleware [store-request http/wrap-url http/wrap-method]
+  (http/with-middleware [store-request aws-sig4/wrap- http/wrap-url http/wrap-method]
     (http/get "http://host.foo.com/"))
-
-  )
-
-(comment
-  (aws-sig4/canonical-request (-> "get-vanilla-query" read-req ->request-map))
-  (aws-sig4/canonical-request (assoc-in (-> "get-vanilla-query" read-req ->request-map)
-                               [:headers "X-Amz-Date"]
-                               "20150830T123600Z"))
-
-  (:string-to-sign (aws-sig4/string-to-sign (aws-sig4/canonical-request (-> "get-vanilla-query" read-req ->request-map))))
-  (read-sts "get-vanilla-query")
-
-  (let [opts {:region "us-east-1"
-              :service "iam"
-              :access-key "AKIDEXAMPLE"
-              :secret-key "K7MDENG+bPxRfiCYEXAMPLEKEY"}]
-    (-> "get-vanilla-query"
-        read-req
-        ->request-map
-        aws-sig4/canonical-request
-        (aws-sig4/string-to-sign opts)
-        (aws-sig4/authorization opts)))
-
-  (-> "get-vanilla-empty-query-key" read-req ->request-map)
-  (-> "get-space" read-req ->request-map)
-  (-> "get-slashes" read-req ->request-map)
-  (-> "post-vanilla-query-space" read-req ->request-map)
-  (-> "post-x-www-form-urlencoded" read-req ->request-map)
-  (-> "post-x-www-form-urlencoded-parameters" read-req ->request-map)
   )

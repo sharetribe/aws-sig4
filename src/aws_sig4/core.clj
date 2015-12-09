@@ -174,3 +174,28 @@
         (client (assoc-in request
                           [:headers "X-Amz-Date"]
                           (format/unparse basic-date-time-no-ms (time/now))))))))
+
+
+(defn wrap-aws-auth
+  "clj-http middleware that adds an Authorization header into the
+  outgoing request as specified by AWS Signature Version 4 Signing
+  Process.
+
+  Takes a client (a request chain to wrap) and aws parameters map:
+  * region - AWS region, e.g. 'us-east-1'
+  * service - The service, e.g. 'iam' or 'es'
+  * access-key - AWS access key
+  * secret-key - AWS secret key
+
+  Expects the request to define either a Date or an X-Amz-Date header.
+  Use wrap-aws-date middleware to ensure one of these is in place."
+  [client {:keys [region service access-key secret-key] :as aws-opts}]
+  {:pre [(some? region) (some? service)
+         (some? access-key) (some? secret-key)]}
+  (fn [request]
+    (let [auth (-> request
+                   canonical-request
+                   (string-to-sign aws-opts)
+                   (authorization aws-opts)
+                   :authorization)]
+      (client (assoc-in request [:headers "Authorization"] auth)))))
