@@ -9,6 +9,8 @@ the responsibility of caller.
 
 **This software hasn't been battle tested yet. Expect bugs and problems.**
 
+[![Circle CI](https://circleci.com/gh/sharetribe/aws-sig4/tree/master.svg?style=svg&circle-token=6d2771f17145d2db88ce255afedc97965b9dca9a)](https://circleci.com/gh/sharetribe/aws-sig4/tree/master)
+
 ## Installation
 
 TBD after alpha pushed to clojars.
