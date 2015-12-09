@@ -152,6 +152,43 @@
            (aws-sig4/calc-signature skey sts))
         "Signature")))
 
+(deftest wrap-aws-date
+  (let [request-with-date (-> "get-vanilla-query" read-req ->request-map)
+        request-with-DAtE (update (-> "get-vanilla-query" read-req ->request-map)
+                                :headers
+                                (fn [headers]
+                                  (let [datev (headers "Date")]
+                                    (-> headers
+                                        (dissoc "Date")
+                                        (assoc "DAtE" datev)))))
+        request-no-date (update (-> "get-vanilla-query" read-req ->request-map)
+                                :headers
+                                dissoc "Date")
+        amz-date (format/unparse (format/formatters :basic-date-time-no-ms)
+                                 (time/minus (time/now) (time/days 5)))
+        request-no-date-amz (update (-> "get-vanilla-query" read-req ->request-map)
+                                :headers
+                                (fn [headers]
+                                  (let [datev (headers "Date")]
+                                    (-> headers
+                                        (dissoc "Date")
+                                        (assoc "X-Amz-Date" amz-date)))))]
+    (is (= nil
+           (get-in ((aws-sig4/wrap-aws-date identity) request-with-date)
+                   [:headers "X-Amz-Date"]))
+        "Request already has Date")
+    (is (= nil
+           (get-in ((aws-sig4/wrap-aws-date identity) request-with-DAtE)
+                   [:headers "X-Amz-Date"]))
+        "Request already has Date and case is ignored")
+   (is (some? (get-in ((aws-sig4/wrap-aws-date identity) request-no-date)
+                   [:headers "X-Amz-Date"]))
+       "Request doesn't have Date. X-Amz-Date is added.")
+   (is (= amz-date
+          (get-in ((aws-sig4/wrap-aws-date identity) request-no-date-amz)
+                  [:headers "X-Amz-Date"]))
+       "No Date header but X-Amz-Date already in place")))
+
 ;; AWS TEST CASES
 ;; ==============
 

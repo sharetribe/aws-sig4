@@ -92,12 +92,6 @@
 
 (def hashed-payload (fnil (comp codecs/bytes->hex hash/sha256) ""))
 
-(defn ensure-aws-date
-  "clj-http middleware that adds an X-Amz-Date header into the request
-  unless it already defines a standard Date header."
-  [request]
-  (throw (ex-info "Not implemented" {:method :ensure-aws-date})))
-
 (defn canonical-request
   "Build a canonical request string from the given clj-http request
   map."
@@ -163,3 +157,20 @@
                            "SignedHeaders=" signed-headers ", "
                            "Signature=" signature)]
     (assoc aws-request :authorization authorization)))
+
+
+(defn wrap-aws-date
+  "clj-http middleware that adds an X-Amz-Date header into the request
+  unless it already defines a standard Date header."
+  [client]
+  (fn [request]
+    (let [headers (->> request
+                       :headers
+                       (map (fn [[n v]]
+                              [(str/lower-case n) v]))
+                       (into {}))]
+      (if (or (headers "date") (headers "x-amz-date"))
+        (client request)
+        (client (assoc-in request
+                          [:headers "X-Amz-Date"]
+                          (format/unparse basic-date-time-no-ms (time/now))))))))
