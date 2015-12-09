@@ -1,12 +1,11 @@
-(ns aws-sig4.core
+(ns aws-sig4.auth
   (:require [clojure.string :as str]
             [pathetic.core :as pathetic]
             [buddy.core.hash :as hash]
             [buddy.core.mac :as mac]
             [buddy.core.codecs :as codecs]
             [clj-time.core :as time]
-            [clj-time.format :as format])
-  (:import [java.net URLEncoder]))
+            [clj-time.format :as format]))
 
 (def nl (with-out-str (newline)))
 (def rfc-1123-formatter (format/formatter "dd MMM yyyy HH:mm:ss 'GMT'"
@@ -157,45 +156,3 @@
                            "SignedHeaders=" signed-headers ", "
                            "Signature=" signature)]
     (assoc aws-request :authorization authorization)))
-
-
-(defn wrap-aws-date
-  "clj-http middleware that adds an X-Amz-Date header into the request
-  unless it already defines a standard Date header."
-  [client]
-  (fn [request]
-    (let [headers (->> request
-                       :headers
-                       (map (fn [[n v]]
-                              [(str/lower-case n) v]))
-                       (into {}))]
-      (if (or (headers "date") (headers "x-amz-date"))
-        (client request)
-        (client (assoc-in request
-                          [:headers "X-Amz-Date"]
-                          (format/unparse basic-date-time-no-ms (time/now))))))))
-
-
-(defn wrap-aws-auth
-  "clj-http middleware that adds an Authorization header into the
-  outgoing request as specified by AWS Signature Version 4 Signing
-  Process.
-
-  Takes a client (a request chain to wrap) and aws parameters map:
-  * region - AWS region, e.g. 'us-east-1'
-  * service - The service, e.g. 'iam' or 'es'
-  * access-key - AWS access key
-  * secret-key - AWS secret key
-
-  Expects the request to define either a Date or an X-Amz-Date header.
-  Use wrap-aws-date middleware to ensure one of these is in place."
-  [client {:keys [region service access-key secret-key] :as aws-opts}]
-  {:pre [(some? region) (some? service)
-         (some? access-key) (some? secret-key)]}
-  (fn [request]
-    (let [auth (-> request
-                   canonical-request
-                   (string-to-sign aws-opts)
-                   (authorization aws-opts)
-                   :authorization)]
-      (client (assoc-in request [:headers "Authorization"] auth)))))

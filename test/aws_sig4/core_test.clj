@@ -3,12 +3,10 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clj-http.client :as http]
-            [aws-sig4.core :as aws-sig4]
+            [aws-sig4.auth :as auth]
+            [aws-sig4.middleware :as aws-sig4]
             [clj-time.format :as format]
-            [clj-time.core :as time])
-
-  (:import [java.net URL]))
-
+            [clj-time.core :as time]))
 
 (def ^:const tc-dir "aws4_testsuite/")
 
@@ -64,11 +62,11 @@
               :secret-key "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"}]
     `(deftest ~testcase
        (let [request#                (-> ~basename read-req str->request-map)
-             canonical-req#          (aws-sig4/canonical-request request#)
-             sts-req#                (aws-sig4/string-to-sign canonical-req#
+             canonical-req#          (auth/canonical-request request#)
+             sts-req#                (auth/string-to-sign canonical-req#
                                                               ~opts)
-             authorization-req#      (aws-sig4/authorization sts-req# ~opts)
-             signed-req#             ((aws-sig4/wrap-aws-auth identity ~opts) request#)
+             authorization-req#      (auth/authorization sts-req# ~opts)
+             signed-req#             (((aws-sig4/build-wrap-aws-auth ~opts) identity) request#)
              expected-canonical-req# (read-can ~basename)
              expected-sts#           (read-sts ~basename)
              expected-auth#          (read-authz ~basename)
@@ -87,25 +85,26 @@
              "Signed request")))))
 
 
-;; The actual test cases
+;; Test cases
+;;
 
 (deftest header-trimming
   (is (= ""
-         (aws-sig4/trim-all nil)))
+         (auth/trim-all nil)))
   (is (= ""
-         (aws-sig4/trim-all "")))
+         (auth/trim-all "")))
   (is (= "foobar"
-         (aws-sig4/trim-all "foobar")))
+         (auth/trim-all "foobar")))
   (is (= "foo bar"
-         (aws-sig4/trim-all "  foo  bar ")))
+         (auth/trim-all "  foo  bar ")))
   (is (= "- foo bar baz"
-         (aws-sig4/trim-all "\t\n\n  -  foo  bar   baz")))
+         (auth/trim-all "\t\n\n  -  foo  bar   baz")))
   (is (= "\"foo  bar\""
-         (aws-sig4/trim-all "\"foo  bar\"")))
+         (auth/trim-all "\"foo  bar\"")))
   (is (= "foo \"bar  baz  \" yarr"
-         (aws-sig4/trim-all "  foo  \"bar  baz  \" yarr ")))
+         (auth/trim-all "  foo  \"bar  baz  \" yarr ")))
   (is (= "foo \"bar  baz  \" ya rr \"bar  baz  \""
-         (aws-sig4/trim-all "  foo  \"bar  baz  \" ya  rr \"bar  baz  \" "))))
+         (auth/trim-all "  foo  \"bar  baz  \" ya  rr \"bar  baz  \" "))))
 
 (def rfc1123-formatter (format/formatter "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
                                          time/utc))
@@ -119,7 +118,7 @@
            (-> "get-vanilla-query"
                read-req
                str->request-map
-               aws-sig4/canonical-request
+               auth/canonical-request
                :request-time))
         "Parse Date header")
     (is (= x-amz-date
@@ -127,7 +126,7 @@
                read-req
                str->request-map
                (assoc-in [:headers "X-Amz-Date"] x-amz-date-str)
-               aws-sig4/canonical-request
+               auth/canonical-request
                :request-time))
         "Prioritize X-Amz-Date")
     (is (= x-amz-date
@@ -135,7 +134,7 @@
                read-req
                str->request-map
                (assoc-in [:headers "x-Amz-DATE"] x-amz-date-str)
-               aws-sig4/canonical-request
+               auth/canonical-request
                :request-time))
         "Ignore header case")))
 
@@ -149,7 +148,7 @@
                   "20150830T123600Z\n"
                   "20150830/us-east-1/iam/aws4_request\n"
                   "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59")
-        skey (apply aws-sig4/signing-key
+        skey (apply auth/signing-key
                     (->> (assoc opts :date-str "20150830")
                          (into [])
                          flatten))]
@@ -159,7 +158,7 @@
                 (mapv #(mod % 256))))
         "Signing key")
     (is (= "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"
-           (aws-sig4/calc-signature skey sts))
+           (auth/calc-signature skey sts))
         "Signature")))
 
 (deftest wrap-aws-date
@@ -245,17 +244,5 @@
 (def-aws-test post-x-www-form-urlencoded-parameters)
 (def-aws-test post-x-www-form-urlencoded)
 
-(comment
-  (run-tests)
-  )
-
-(comment
-  (require '[clj-http.client :as http])
-  (def last-req (atom nil))
-  (defn store-request [client]
-    (fn [request]
-      (reset! last-req request)
-      (client request)))
-  (http/with-middleware [store-request aws-sig4/wrap- http/wrap-url http/wrap-method]
-    (http/get "http://host.foo.com/"))
+(comment (run-tests)
   )
