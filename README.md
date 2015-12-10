@@ -30,7 +30,9 @@ Build an auth middleware instance by passing in AWS parameters.
 (def wrap-aws-auth (aws-sig4/build-wrap-aws-auth {:region "us-east-1"
                                                   :service "es"
                                                   :access-key "AWS_ACCESS_KEY"
-                                                  :secret-key "AWS_SECRET_KEY"}))
+                                                  :secret-key "AWS_SECRET_KEY"
+                                                  :token "AWS_SESSION_TOKEN" ; optional
+                                                  }))
 
 ```
 
