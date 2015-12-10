@@ -198,6 +198,23 @@
                   [:headers "X-Amz-Date"]))
        "No Date header but X-Amz-Date already in place")))
 
+(deftest add-token-header
+  (let [opts {:region "us-east-1"
+              :service "host"
+              :access-key "AKIDEXAMPLE"
+              :secret-key "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+              :token "token"}
+        req (-> "get-vanilla-query" read-req str->request-map)]
+    (is (= "token"
+           (-> (((aws-sig4/build-wrap-aws-auth opts) identity) req)
+               (get-in [:headers "X-Amz-Security-Token"])))
+        "Token given")
+    (is (= nil
+           (-> (((aws-sig4/build-wrap-aws-auth (dissoc opts :token)) identity) req)
+               (get-in [:headers "X-Amz-Security-Token"])))
+        "Token not given")))
+
+
 ;; AWS TEST CASES
 ;; ==============
 

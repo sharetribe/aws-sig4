@@ -31,10 +31,11 @@
   * service - The service, e.g. 'iam' or 'es'
   * access-key - AWS access key
   * secret-key - AWS secret key
+  * token - AWS session token in case temporary security credentials are used
 
   Expects the request to define either a Date or an X-Amz-Date header.
   Use wrap-aws-date middleware to ensure one of these is in place."
-  [{:keys [region service access-key secret-key] :as aws-opts}]
+  [{:keys [region service access-key secret-key token] :as aws-opts}]
   {:pre [(some? region) (some? service)
          (some? access-key) (some? secret-key)]}
   (fn [client]
@@ -43,5 +44,8 @@
                      auth/canonical-request
                      (auth/string-to-sign aws-opts)
                      (auth/authorization aws-opts)
-                     :authorization)]
-        (client (assoc-in request [:headers "Authorization"] auth))))))
+                     :authorization)
+            sreq (cond-> request
+                   true (assoc-in [:headers "Authorization"] auth)
+                   token (assoc-in [:headers "X-Amz-Security-Token"] token))]
+        (client sreq)))))
