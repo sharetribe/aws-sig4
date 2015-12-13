@@ -5,7 +5,8 @@
             [buddy.core.mac :as mac]
             [buddy.core.codecs :as codecs]
             [clj-time.core :as time]
-            [clj-time.format :as format]))
+            [clj-time.format :as format])
+  (:import [org.apache.http.entity StringEntity]))
 
 (def nl (with-out-str (newline)))
 (def rfc-1123-formatter (format/formatter "dd MMM yyyy HH:mm:ss 'GMT'"
@@ -91,7 +92,13 @@
        (map str/lower-case)
        (str/join ";")))
 
-(def hashed-payload (fnil (comp codecs/bytes->hex hash/sha256) ""))
+(defn hashed-payload [body]
+  (let [body (if (instance? StringEntity body)
+               (if (.isRepeatable ^StringEntity body)
+                 (slurp (.getContent ^StringEntity body))
+                 body)
+               body)]
+    ((fnil (comp codecs/bytes->hex hash/sha256) "") body)))
 
 (defn canonical-request
   "Build a canonical request string from the given clj-http request

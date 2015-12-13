@@ -6,7 +6,9 @@
             [aws-sig4.auth :as auth]
             [aws-sig4.middleware :as aws-sig4]
             [clj-time.format :as format]
-            [clj-time.core :as time]))
+            [clj-time.core :as time])
+
+  (:import [org.apache.http.entity StringEntity]))
 
 (def ^:const tc-dir "aws4_testsuite/")
 
@@ -213,6 +215,25 @@
            (-> (((aws-sig4/build-wrap-aws-auth (dissoc opts :token)) identity) req)
                (get-in [:headers "X-Amz-Security-Token"])))
         "Token not given")))
+
+(deftest stringentity-body
+  (let [opts          {:region "us-east-1"
+                       :service "host"
+                       :access-key "AKIDEXAMPLE"
+                       :secret-key "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"}
+        req           (-> "post-x-www-form-urlencoded"
+                          read-req
+                          str->request-map
+                          (update :body #(StringEntity. %)))
+        sreq          (((aws-sig4/build-wrap-aws-auth opts)
+                        identity)
+                       req)
+        expected-sreq (-> "post-x-www-form-urlencoded"
+                          read-sreq
+                          str->request-map)]
+    (is (= (:headers expected-sreq)
+           (:headers sreq))
+        "Body as StringEntity")))
 
 
 ;; AWS TEST CASES
