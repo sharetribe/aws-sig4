@@ -1,4 +1,4 @@
-(defproject org.sharetribe/aws-sig4 "0.1.0-SNAPSHOT"
+(defproject org.sharetribe/aws-sig4 "0.1.0-alpha1"
   :description "Middleware to add AWS signature v4 signing to clj-http requests."
   :url "http://github.com/sharetribe/aws-sig4"
   :license {:name "Apache License, Version 2.0"

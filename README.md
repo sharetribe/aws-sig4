@@ -13,7 +13,11 @@ the responsibility of caller.
 
 ## Installation
 
-TBD after alpha pushed to clojars.
+With Leiningen/Boot:
+
+```clojure
+[org.sharetribe/aws-sig4 "0.1.0-alpha1"]
+```
 
 ## Usage
 
