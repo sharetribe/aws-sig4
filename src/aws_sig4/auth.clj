@@ -93,12 +93,11 @@
        (str/join ";")))
 
 (defn hashed-payload [body]
-  (let [body (if (instance? StringEntity body)
-               (if (.isRepeatable ^StringEntity body)
-                 (slurp (.getContent ^StringEntity body))
-                 body)
-               body)]
-    ((fnil (comp codecs/bytes->hex hash/sha256) "") body)))
+  (let [body-is-or-s (if (and (instance? StringEntity body)
+                              (.isRepeatable ^StringEntity body))
+                       (.getContent ^StringEntity body)
+                       body)]
+    ((fnil (comp codecs/bytes->hex hash/sha256) "") body-is-or-s)))
 
 (defn canonical-request
   "Build a canonical request string from the given clj-http request
