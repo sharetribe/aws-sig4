@@ -7,7 +7,7 @@ middleware and doesn't do anything else like autodetecting AWS
 credentials. Providing correct credentials, region and service name is
 the responsibility of caller.
 
-**This library has seen only limited production usage so far. Bugs and problems may exist.**
+**This library has seen only limited production use so far. Bugs and problems may exist. Please file issues if you encounter any problems.**
 
 [![Circle CI](https://circleci.com/gh/sharetribe/aws-sig4/tree/master.svg?style=svg&circle-token=6d2771f17145d2db88ce255afedc97965b9dca9a)](https://circleci.com/gh/sharetribe/aws-sig4/tree/master)
 
@@ -16,7 +16,7 @@ the responsibility of caller.
 With Leiningen/Boot:
 
 ```clojure
-[org.sharetribe/aws-sig4 "0.1.1"]
+[org.sharetribe/aws-sig4 "0.1.2"]
 ```
 
 ## Usage
