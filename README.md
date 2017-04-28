@@ -24,7 +24,7 @@ With Leiningen/Boot:
 Require clj-http client and the middleware.
 
 ```clojure
-(require '[asw-sig4.middleware :as aws-sig4]
+(require '[aws-sig4.middleware :as aws-sig4]
          '[clj-http.client :as http])
 ```
 
