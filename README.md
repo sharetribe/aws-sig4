@@ -16,7 +16,7 @@ the responsibility of caller.
 With Leiningen/Boot:
 
 ```clojure
-[org.sharetribe/aws-sig4 "0.1.2"]
+[org.sharetribe/aws-sig4 "0.1.3"]
 ```
 
 ## Usage
@@ -41,8 +41,8 @@ Build an auth middleware instance by passing in AWS parameters.
 ```
 
 Wrap outgoing requests with the middleware instance. Optionally
-include wrap-aws-date to ensure that that requests have either the
-required Date header or if not generate X-Amz-Date
+include wrap-aws-date to ensure that all requests have either the
+required Date header, or if not generate X-Amz-Date
 header. wrap-aws-date must be defined first in the middleware chain.
 
 ```clojure
