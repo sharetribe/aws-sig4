@@ -40,12 +40,15 @@
          (some? access-key) (some? secret-key)]}
   (fn [client]
     (fn [request]
-      (let [auth (-> request
-                     auth/canonical-request
+      (let [hashed-payload (auth/hashed-payload (:body request))
+            auth (-> request
+                     (auth/canonical-request hashed-payload)
                      (auth/string-to-sign aws-opts)
                      (auth/authorization aws-opts)
                      :authorization)
             sreq (cond-> request
-                   true (assoc-in [:headers "Authorization"] auth)
+                   true (update-in [:headers] assoc
+                                   "Authorization" auth
+                                   "x-amz-content-sha256" hashed-payload)
                    token (assoc-in [:headers "X-Amz-Security-Token"] token))]
         (client sreq)))))
