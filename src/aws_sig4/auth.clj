@@ -73,8 +73,10 @@
                          "in order to be signed with the AWS v4 signature.")
                     {:headers headers}))))
 
-(defn- normalize-headers [headers server-name]
-  (->> (assoc headers "host" server-name)
+(defn- normalize-headers [headers server-name hashed-payload]
+  (->> (assoc headers
+              "host" server-name
+              "x-amz-content-sha256" hashed-payload)
        (map (fn [[header-n header-v]]
               [(str/lower-case header-n)
                (trim-all header-v)]))
@@ -103,10 +105,10 @@
 (defn canonical-request
   "Build a canonical request string from the given clj-http request
   map."
-  [request]
+  [request hashed-payload]
   (let [{:keys [request-method uri query-string
-                headers server-name body]} request
-        normalized-headers (normalize-headers headers server-name)
+                headers server-name]} request
+        normalized-headers (normalize-headers headers server-name hashed-payload)
         request-time (parse-date normalized-headers)
         signed-headers (signed-headers normalized-headers)
         parts [(str/upper-case (name request-method))
@@ -114,7 +116,7 @@
                (canonical-query-string query-string)
                (canonical-headers normalized-headers)
                signed-headers
-               (hashed-payload body)]]
+               hashed-payload]]
     {:request request
      :canonical-request (str/join nl parts)
      :request-time request-time
