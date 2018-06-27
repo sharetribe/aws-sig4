@@ -16,7 +16,7 @@ the responsibility of caller.
 With Leiningen/Boot:
 
 ```clojure
-[org.sharetribe/aws-sig4 "0.1.3"]
+[org.sharetribe/aws-sig4 "0.1.4"]
 ```
 
 ## Usage
