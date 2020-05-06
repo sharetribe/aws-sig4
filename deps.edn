@@ -1,0 +1,8 @@
+{:deps {clj-http {:mvn/version "3.10.0"}
+        pathetic {:mvn/version "0.5.1"}
+        buddy/buddy-core {:mvn/version "1.5.0"}
+        clj-time {:mvn/version "0.15.2"}
+        }
+ :paths ["src"]
+ :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
+             "clojars" {:url "https://clojars.org/repo/"}}}

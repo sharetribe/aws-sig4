@@ -50,10 +50,9 @@
       (compare p1v p2v)
       name-order)))
 
-(defn- canonical-query-string [query-string]
-  (if-not (empty? query-string)
-    (->> (str/split query-string #"&")
-         (map #(str/split % #"="))
+(defn- canonical-query-string [query-params]
+  (if-not (empty? query-params)
+    (->> query-params
          (map (fn [[name value]]
                 [name value]))
          (sort query-param-comp)
@@ -104,14 +103,14 @@
   "Build a canonical request string from the given clj-http request
   map."
   [request]
-  (let [{:keys [request-method uri query-string
+  (let [{:keys [request-method uri query-params
                 headers server-name body]} request
         normalized-headers (normalize-headers headers server-name)
         request-time (parse-date normalized-headers)
         signed-headers (signed-headers normalized-headers)
         parts [(str/upper-case (name request-method))
                (canonical-uri uri)
-               (canonical-query-string query-string)
+               (canonical-query-string query-params)
                (canonical-headers normalized-headers)
                signed-headers
                (hashed-payload body)]]

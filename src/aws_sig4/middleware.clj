@@ -1,5 +1,6 @@
 (ns aws-sig4.middleware
   (:require [clojure.string :as str]
+            [clj-http.client :as http]
             [clj-time.format :as format]
             [clj-time.core :as time]
             [aws-sig4.auth :as auth]))
@@ -59,3 +60,11 @@
        (client (sign request aws-opts)))
       ([request respond raise]
        (client (sign request aws-opts) respond raise)))))
+
+(defn build-wrap-aws-auth-all [params]
+  (let [aws-auth (build-wrap-aws-auth params)]
+    (fn [client]
+      (-> client
+          (aws-auth)
+          (wrap-aws-date)
+          (http/wrap-url)))))
