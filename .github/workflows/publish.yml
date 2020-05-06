@@ -6,9 +6,21 @@ on:
       - "*"
 
 jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: DeLaGuardo/setup-graalvm@2.0
+        with:
+          graalvm-version: '19.3.1.java11'
+      - uses: DeLaGuardo/setup-clojure@2.0
+        with:
+          tools-deps: '1.10.1.469'
+      - run: clojure -A:test
+
   clojars:
     runs-on: ubuntu-latest
-
+    needs: [tests]
     steps:
       # This step checks out a copy of your repository.
       - uses: actions/checkout@v2
