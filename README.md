@@ -1,5 +1,12 @@
 # aws-sig4
 
+## [!] Forked
+
+Forked from [https://github.com/sharetribe/aws-sig4](https://github.com/sharetribe/aws-sig4)
+
+- clj-http v2 -> v3
+- lein -> tools deps
+
 [AWS signature v4 request signing](http://docs.aws.amazon.com/general/latest/gr/signature-version-4.html)
 implemented as an clj-http middleware. This is a pure clojure
 implementation and does not require the AWS SDK. It only provides the
@@ -9,15 +16,9 @@ the responsibility of caller.
 
 **This library has seen only limited production use so far. Bugs and problems may exist. Please file issues if you encounter any problems.**
 
-[![Circle CI](https://circleci.com/gh/sharetribe/aws-sig4/tree/master.svg?style=svg&circle-token=6d2771f17145d2db88ce255afedc97965b9dca9a)](https://circleci.com/gh/sharetribe/aws-sig4/tree/master)
-
 ## Installation
 
-With Leiningen/Boot:
-
-```clojure
-[org.sharetribe/aws-sig4 "0.1.4"]
-```
+TODO.
 
 ## Usage
 
@@ -59,6 +60,6 @@ when accessing AWS services.
 
 ## License
 
-Copyright © 2015 Sharetribe Ltd.
+Author of original code: Sharetribe Ltd. [https://github.com/sharetribe/aws-sig4](https://github.com/sharetribe/aws-sig4)
 
 Distributed under [The Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
