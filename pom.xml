@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>${GROUP_ID}</groupId>
-  <artifactId>${ARTIFACT_ID}</artifactId>
+  <groupId>org.zarkone</groupId>
+  <artifactId>aws-sig4</artifactId>
   <version>LATEST</version>
-  <name>${PROJECT_NAME}</name>
+  <name>aws-sig4</name>
   <description>A description</description>
-  <url>https://github.com/$USER/$PROJECT</url>
+  <url>https://github.com/zarkone/aws-sig4</url>
   <licenses>
     <license>
       <name>Eclipse Public License</name>
@@ -19,9 +19,9 @@
     </developer>
   </developers>
   <scm>
-    <url>https://github.com/$USER/$PROJECT</url>
-    <connection>scm:git:git://github.com/$USER/$PROJECT.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/$USER/$PROJECT.git</developerConnection>
+    <url>https://github.com/zarkone/aws-sig4</url>
+    <connection>scm:git:git://github.com/zarkone/aws-sig4</connection>
+    <developerConnection>scm:git:ssh://git@github.com/zarkone/aws-sig4.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
