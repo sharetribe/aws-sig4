@@ -37,7 +37,8 @@
     (let [^String normalized (-> uri
                                  pathetic/normalize
                                  (str/replace #"\*" "%2A")
-                                 (str/replace #"," "%2C"))]
+                                 (str/replace #"," "%2C")
+                                 (str/replace #":" "%3A"))]
       (if (and (> (.length normalized) 1)
                (= (.charAt uri (- (.length uri) 1)) \/))
         (str normalized "/")
